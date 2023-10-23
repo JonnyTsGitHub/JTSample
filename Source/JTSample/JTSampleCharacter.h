@@ -12,6 +12,8 @@ class USceneComponent;
 class UCameraComponent;
 class UAnimMontage;
 class USoundBase;
+class UHealthComponent;
+class UPhaseComponent;
 
 // Declaration of the delegate that will be called when the Primary Action is triggered
 // It is declared as dynamic so it can be accessed also in Blueprints
@@ -30,6 +32,12 @@ class AJTSampleCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCameraComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UHealthComponent* HealthComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UPhaseComponent* PhaseComponent;
+
 public:
 	AJTSampleCharacter();
 
@@ -44,10 +52,23 @@ public:
 	/** Delegate to whom anyone can subscribe to receive this event */
 	UPROPERTY(BlueprintAssignable, Category = "Interaction")
 	FOnUseItem OnUseItem;
+
+	/** 
+	 * Architecturally this should be handled by an inventory component and a whole designer facing system for answering  
+	 * whether we can pick something up.  But that is not the point of this demo, so I'm just exposing it here to avoid
+	 * distractions.
+	 */
+	bool CanPickup(class UTP_PickUpComponent& pickup);
+
+	void Pickup(class UTP_PickUpComponent& pickup);
+
 protected:
 	
 	/** Fires a projectile. */
 	void OnPrimaryAction();
+
+	/** Cycles phase */
+	void OnAltAction();
 
 	/** Handles moving forward/backward */
 	void MoveForward(float Val);
@@ -67,6 +88,10 @@ protected:
 	 */
 	void LookUpAtRate(float Rate);
 
+
+	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
+
+
 	struct TouchData
 	{
 		TouchData() { bIsPressed = false;Location=FVector::ZeroVector;}
@@ -80,6 +105,8 @@ protected:
 	void TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location);
 	TouchData	TouchItem;
 	
+	bool bHasPickup = false;
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;

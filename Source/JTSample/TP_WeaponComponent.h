@@ -30,6 +30,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	FVector MuzzleOffset;
 
+	/** Seconds between shots - be careful setting this too low which could create a lot of network traffic and/or overlow buffers */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
+	FTimespan FiringDelay = FTimespan::FromSeconds(0.2);
+
 	/** Sets default values for this component's properties */
 	UTP_WeaponComponent();
 
@@ -46,8 +50,27 @@ protected:
 	UFUNCTION()
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 		
+	UFUNCTION(Server, Reliable)
+	void SpawnProjectile();
 
 private:
+	UFUNCTION()
+	void CharacterDestroyed(AActor* InActor);
+
+	UFUNCTION()
+	void OnRep_Character();
+
+	void BindCharacterEvents();
+	void UnbindCharacterEvents();
+
 	/** The Character holding this weapon*/
+	UPROPERTY(ReplicatedUsing = OnRep_Character)
 	AJTSampleCharacter* Character;
+
+	/** The character whose events we are currently bound to */
+	UPROPERTY()
+	AJTSampleCharacter* BoundCharacter;
+
+	/** The last time this weapon was fired - used to apply the firing delay */
+	FDateTime LastFireTime = FDateTime::MinValue();
 };

@@ -8,6 +8,7 @@
 
 class USphereComponent;
 class UProjectileMovementComponent;
+class UPhaseComponent;
 
 UCLASS(config=Game)
 class AJTSampleProjectile : public AActor
@@ -21,6 +22,9 @@ class AJTSampleProjectile : public AActor
 	/** Projectile movement component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	UProjectileMovementComponent* ProjectileMovement;
+
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	UPhaseComponent* PhaseComponent;
 
 public:
 	AJTSampleProjectile();

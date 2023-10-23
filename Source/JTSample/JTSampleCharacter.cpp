@@ -7,6 +7,9 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/InputSettings.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "HealthComponent.h"
+#include "PhaseComponent.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -14,6 +17,8 @@
 
 AJTSampleCharacter::AJTSampleCharacter()
 {
+	bReplicates = true;
+
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 
@@ -35,6 +40,12 @@ AJTSampleCharacter::AJTSampleCharacter()
 	Mesh1P->SetRelativeRotation(FRotator(1.9f, -19.19f, 5.2f));
 	Mesh1P->SetRelativeLocation(FVector(-0.5f, -4.4f, -155.7f));
 
+	// Use inherited character mesh component for 3p view
+	GetMesh()->SetOwnerNoSee(true);
+
+	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+
+	PhaseComponent = CreateDefaultSubobject<UPhaseComponent>(TEXT("PhaseComponent"));
 }
 
 void AJTSampleCharacter::BeginPlay()
@@ -58,6 +69,9 @@ void AJTSampleCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 	// Bind fire event
 	PlayerInputComponent->BindAction("PrimaryAction", IE_Pressed, this, &AJTSampleCharacter::OnPrimaryAction);
 
+	// Bind cycle phase event
+	PlayerInputComponent->BindAction("AltAction", IE_Pressed, this, &AJTSampleCharacter::OnAltAction);
+
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
 
@@ -78,6 +92,11 @@ void AJTSampleCharacter::OnPrimaryAction()
 {
 	// Trigger the OnItemUsed Event
 	OnUseItem.Broadcast();
+}
+
+void AJTSampleCharacter::OnAltAction()
+{
+	PhaseComponent->CyclePhase();
 }
 
 void AJTSampleCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
@@ -146,4 +165,36 @@ bool AJTSampleCharacter::EnableTouchscreenMovement(class UInputComponent* Player
 	}
 	
 	return false;
+}
+
+float AJTSampleCharacter::TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	// Damage is only applied on the server
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		return -HealthComponent->AdjustHealth(-DamageTaken);
+	}
+	else
+	{
+		return DamageTaken;
+	}
+}
+
+
+bool AJTSampleCharacter::CanPickup(class UTP_PickUpComponent& pickup)
+{ 
+	// Since we don't actually have an inventory system and the point of this demo isn't making one, we'll just do
+	// the simplest thing possible - which is allow us to only ever pick up one thing.
+	return !bHasPickup && GetLocalRole() == ROLE_Authority;
+}
+
+void AJTSampleCharacter::Pickup(class UTP_PickUpComponent& pickup)
+{ 
+	if (GetLocalRole() != ROLE_Authority)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Pickup is only valid on the Server"));
+		return;
+	}
+
+	bHasPickup = true; 
 }

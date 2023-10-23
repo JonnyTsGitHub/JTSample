@@ -3,9 +3,14 @@
 #include "JTSampleProjectile.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/SphereComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/DamageType.h"
+#include "PhaseComponent.h"
 
 AJTSampleProjectile::AJTSampleProjectile() 
 {
+	bReplicates = true;
+
 	// Use a sphere as a simple collision representation
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
 	CollisionComp->InitSphereRadius(5.0f);
@@ -27,17 +32,40 @@ AJTSampleProjectile::AJTSampleProjectile()
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = true;
 
+	PhaseComponent = CreateDefaultSubobject<UPhaseComponent>(TEXT("PhaseComponent"));
+
 	// Die after 3 seconds by default
 	InitialLifeSpan = 3.0f;
 }
 
 void AJTSampleProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	// Only add impulse and destroy projectile if we hit a physics
-	if ((OtherActor != nullptr) && (OtherActor != this) && (OtherComp != nullptr) && OtherComp->IsSimulatingPhysics())
+	if (OtherActor)
 	{
-		OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
+		// We can only damage actors with phase components and only if the phase matches
+		if (UPhaseComponent* OtherPhaseComponent = OtherActor->FindComponentByClass<UPhaseComponent>())
+		{
+			if (OtherPhaseComponent->GetPhase() == PhaseComponent->GetPhase())
+			{
+				if (APawn* DamageInstigator = GetInstigator())
+				{
+					float damage = GetVelocity().Length() / 200;
+					UGameplayStatics::ApplyPointDamage(OtherActor, damage, NormalImpulse, Hit, DamageInstigator->Controller, this, UDamageType::StaticClass());
 
-		Destroy();
+					// If we damaged something, destroy ourselves
+					Destroy();
+				}
+			}
+		}
+		else
+		{
+			// We can still knock around the cubes - they've been set to replicate
+			if (OtherActor != this && OtherComp != nullptr && OtherComp->IsSimulatingPhysics())
+			{
+				OtherComp->AddImpulseAtLocation(GetVelocity() * 100.0f, GetActorLocation());
+
+				Destroy();
+			}
+		}
 	}
 }
